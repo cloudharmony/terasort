@@ -61,6 +61,34 @@ class TeraSortTest {
     // add test stop time
     $this->options['test_stopped'] = date('Y-m-d H:i:s');
     
+    $pieces = explode("\n", trim(shell_exec('hadoop version 2>&1')));
+    if ($pieces[0]) {
+      $pieces = explode(' ', $pieces[0]);
+      $this->options['hadoop_version'] = $pieces[count($pieces) - 1];
+    }
+    $pieces = explode("\n", trim(shell_exec('java -version 2>&1')));
+    if ($pieces[0] && preg_match('/([0-9\._]+)/', $pieces[0], $m)) {
+      $this->options['java_version'] = $m[1];
+    }
+    foreach(array('teragen', 'terasort', 'teravalidate') as $prog) {
+      $conf = sprintf('%s/%s.xml', $this->options['output'], $prog);
+      $ofile = sprintf('%s/%s.out', $this->options['output'], $prog);
+      if (file_exists($conf)) {
+        $properties = array();
+        foreach(file($conf) as $line) {
+          if (preg_match('/name\>(.*)\<\/name\>\<value\>(.*)\<\/value\>/', trim($line), $m)) $properties[$m[1]] = $m[2];
+        }
+        if (isset($properties['dfs.blocksize'])) $this->options[sprintf('%s_blocksize', $prog)] = round(($properties['dfs.blocksize']/1024)/1024);
+        if (isset($properties['dfs.replication'])) $this->options[sprintf('%s_replication', $prog)] = $properties['dfs.replication']*1;
+      }
+      if (file_exists($ofile)) {
+        foreach(file($ofile) as $line) {
+          if (preg_match('/map tasks\s*=\s*([0-9]+)$/', trim($line), $m)) $this->options[sprintf('%s_map_tasks', $prog)] = $m[1]*1;
+          else if (preg_match('/reduce tasks\s*=\s*([0-9]+)$/', trim($line), $m)) $this->options[sprintf('%s_reduce_tasks', $prog)] = $m[1]*1;
+        }
+      }
+    }
+    
     // serialize options
     $ofile = sprintf('%s/%s', $dir, self::TERASORT_TEST_OPTIONS_FILE_NAME);
     if (is_dir($dir) && is_writable($dir)) {
@@ -94,33 +122,6 @@ class TeraSortTest {
       foreach($this->options as $key => $val) {
         $col = $key;
         $results[$col] = is_array($val) ? implode(',', $val) : $val;
-      }
-      $pieces = explode("\n", trim(shell_exec('hadoop version 2>&1')));
-      if ($pieces[0]) {
-        $pieces = explode(' ', $pieces[0]);
-        $results['hadoop_version'] = $pieces[count($pieces) - 1];
-      }
-      $pieces = explode("\n", trim(shell_exec('java -version 2>&1')));
-      if ($pieces[0] && preg_match('/([0-9\._]+)/', $pieces[0], $m)) {
-        $results['java_version'] = $m[1];
-      }
-      foreach(array('teragen', 'terasort', 'teravalidate') as $prog) {
-        $conf = sprintf('%s/%s.xml', $this->options['output'], $prog);
-        $ofile = sprintf('%s/%s.out', $this->options['output'], $prog);
-        if (file_exists($conf)) {
-          $properties = array();
-          foreach(file($conf) as $line) {
-            if (preg_match('/name\>(.*)\<\/name\>\<value\>(.*)\<\/value\>/', trim($line), $m)) $properties[$m[1]] = $m[2];
-          }
-          if (isset($properties['dfs.blocksize'])) $results[sprintf('%s_blocksize', $prog)] = round(($properties['dfs.blocksize']/1024)/1024);
-          if (isset($properties['dfs.replication'])) $results[sprintf('%s_replication', $prog)] = $properties['dfs.replication']*1;
-        }
-        if (file_exists($ofile)) {
-          foreach(file($ofile) as $line) {
-            if (preg_match('/map tasks\s*=\s*([0-9]+)$/', trim($line), $m)) $results[sprintf('%s_map_tasks', $prog)] = $m[1]*1;
-            else if (preg_match('/reduce tasks\s*=\s*([0-9]+)$/', trim($line), $m)) $results[sprintf('%s_reduce_tasks', $prog)] = $m[1]*1;
-          }
-        }
       }
     }
     return $results;
