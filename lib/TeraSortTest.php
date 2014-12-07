@@ -155,6 +155,7 @@ class TeraSortTest {
         );
         $opts = array(
           'hadoop_examples_jar:',
+          'hadoop_heapsize:',
           'meta_compute_service:',
           'meta_compute_service_id:',
           'meta_cpu:',
@@ -227,13 +228,20 @@ class TeraSortTest {
                        isset($this->options['teravalidate_args']) ? ' -D' . implode(' -D', $this->options['teravalidate_args']) : '',
                        $this->options['terasort_dir'], $this->options['teravalidate_dir']);
     $purge = array();
+    
     foreach($cmds as $prog => $cmd) {
       $dir = $this->options[sprintf('%s_dir', $prog)];
+      // purge existing directory if necessary
+      exec(sprintf('hadoop fs -rm -r %s >/dev/null 2>&1', $dir));
       $this->options[sprintf('%s_cmd', $prog)] = $cmd;
       $success = FALSE;
       print_msg($cmd, isset($this->options['verbose']), __FILE__, __LINE__);
       $ofile = sprintf('%s/%s.out', $this->options['output'], $prog);
       $xfile = sprintf('%s/%s.status', $this->options['output'], $prog);
+      if (isset($this->options['hadoop_heapsize'])) {
+        print_msg(sprintf('Setting heapsize to %s', $this->options['hadoop_heapsize']), isset($this->options['verbose']), __FILE__, __LINE__);
+        $cmd = sprintf('export HADOOP_HEAPSIZE=%s;%s', $this->options['hadoop_heapsize'], $cmd);
+      }
       $cmd = sprintf('%s 2>&1 | tee %s;echo %s >%s', $cmd, $ofile, '${PIPESTATUS[0]}', $xfile);
       $start = time();
       passthru($cmd);
@@ -308,6 +316,7 @@ class TeraSortTest {
   public function validateRunOptions() {
     $this->getRunOptions();
     $validate = array(
+      'hadoop_heapsize' => array('min' => 128),
       'meta_hdfs_nodes' => array('min' => 1, 'required' => TRUE),
       'meta_storage_volumes' => array('min' => 1, 'required' => TRUE),
       'meta_storage_volume_size' => array('min' => 1),
