@@ -1,0 +1,237 @@
+TeraSort Benchmark
+
+This repository provides an execution wrapper for the Hadoop TeraSort 
+benchmark. TeraSort is a widely used benchmark for Hadoop distributions. As 
+the name implies, it is a sorting benchmark. The TeraSort package includes 
+3 map/reduce applications: TeraGen (data generator), TeraSort (map/reduce 
+sorting), and TeraValidate (sort validation). For more information see:
+
+https://hadoop.apache.org/docs/current/api/org/apache/hadoop/examples/terasort/package-summary.html
+
+
+RUNTIME PARAMETERS
+Use of run.sh requires the Hadoop cluster to be provisioned and accessible to 
+the user via the 'hadoop' command. The following runtime parameters and 
+environment metadata may be specified (using run.sh arguments):
+
+* hadoop_examples_jar       Optional explicit path to hadoop-examples.jar 
+                            e.g. /usr/lib/hadoop-0.20-mapreduce/hadoop-examples.jar
+
+* meta_compute_service      The name of the compute service this test pertains
+                            to. May also be specified using the environment 
+                            variable bm_compute_service
+                            
+* meta_compute_service_id   The id of the compute service this test pertains
+                            to. Added to saved results. May also be specified 
+                            using the environment variable bm_compute_service_id
+                            
+* meta_cpu                  CPU descriptor - if not specified, it will be set 
+                            using the 'model name' attribute in /proc/cpuinfo
+                            
+* meta_instance_id          The compute service instance type this test pertains 
+                            to (e.g. c3.xlarge). May also be specified using 
+                            the environment variable bm_instance_id
+                            
+* meta_memory               Memory descriptor - if not specified, the system
+                            memory size will be used
+                            
+* meta_hdfs_nodes           Number of data nodes in the HDFS cluster. If not 
+                            specified, an attempt to determine this value will 
+                            be tried using 'hdfs dfsadmin -report'. However, 
+                            only the 'hdfs' user has access to this information 
+                            using that command and if not accessible, the value 
+                            of this parameter defaults to 1
+                            
+* meta_os                   Operating system descriptor - if not specified, 
+                            it will be taken from the first line of /etc/issue
+                            
+* meta_provider             The name of the cloud provider this test pertains
+                            to. May also be specified using the environment 
+                            variable bm_provider
+                            
+* meta_provider_id          The id of the cloud provider this test pertains
+                            to. May also be specified using the environment 
+                            variable bm_provider_id
+                            
+* meta_region               The compute service region this test pertains to. 
+                            May also be specified using the environment 
+                            variable bm_region
+                            
+* meta_resource_id          An optional benchmark resource identifiers. May 
+                            also be specified using the environment variable 
+                            bm_resource_id
+                            
+* meta_run_id               An optional benchmark run identifiers. May also be 
+                            specified using the environment variable bm_run_id
+                            
+* meta_storage_config       Storage configuration descriptor. May also be 
+                            specified using the environment variable 
+                            bm_storage_config
+                            
+* meta_storage_volumes      Number of storage volumes attached to each HDFS 
+                            node
+                            
+* meta_storage_volume_size  Size of each storage volume in GB
+                            
+* meta_test_id              Identifier for the test. May also be specified 
+                            using the environment variable bm_test_id
+                            
+* no_purge                  If set, 'teragen_dir', 'terasort_dir' and 
+                            'teravalidate_dir' will not be deleted upon test 
+                            completion
+                            
+* output                    The output directory to use for writing test data 
+                            (logs and artifacts). If not specified, the current 
+                            working directory will be used
+                            
+* teragen_args              Optional -D arguments for teragen - multiple OK
+                            e.g. "dfs.block.size=134217728"
+                            
+* teragen_dir               hdfs directory where teragen input should be 
+                            written to - if it already exists, it will be 
+                            deleted prior to testing. Default is 
+                            'terasort-input'
+                            
+* teragen_rows              Number of 100 byte rows to generate - default is 
+                            10 billion == 1 TB. This parameter will be 
+                            validated against the available HDFS capacity 
+                            prior to test execution
+                            
+* terasort_args             Optional -D arguments for terasort - multiple OK
+                            e.g. "mapred.map.tasks=4"
+                            
+* terasort_dir              hdfs directory where terasort output should be 
+                            written to - if it already exists, it will be 
+                            deleted prior to testing. Default is 
+                            'terasort-output'
+                            
+* teravalidate_args         Optional -D arguments for teravalidate - multiple 
+                            OK
+                            
+* teravalidate_dir          hdfs directory where teravalidate output should be 
+                            written to - if it already exists, it will be 
+                            deleted prior to testing. Default is 
+                            'terasort-validate'
+                            
+* verbose                   Show verbose output
+                            
+                            
+DEPENDENCIES
+This benchmark has the following dependencies:
+
+  hadoop      Hadoop command - cluster should be provisioned and enabled for 
+              the current user invoking run.sh
+              
+  hdfs        Used to interact with hdfs
+  
+  java        Java JDK
+
+  php         Test automation scripts (/usr/bin/php)
+  
+  zip         Used to compress test artifacts
+  
+  
+TEST ARTIFACTS
+This benchmark generates the following artifacts:
+
+terasort-conf.zip  Compressed XML configuration files for teragen, terasort 
+                   and teravalidate (teragen.xml, terasort.xml and 
+                   teravalidate.xml)
+
+terasort-logs.zip  Compressed stdout, stderr and log files for teragen, 
+                   terasort and teravalidate (teragen.out, teragen.log, 
+                   terasort.out, terasort.log, teravalidate.out, 
+                   teravalidate.log)
+
+
+SAVE SCHEMA
+The following columns are included in CSV files/tables generated by save.sh. 
+Indexed MySQL/PostgreSQL columns are identified by *. Columns without 
+descriptions are documented as runtime parameters above. Data types and 
+indexing used is documented in save/schema/terasort.json. Columns can be
+removed using the save.sh --remove parameter
+
+benchmark_version: [benchmark version]
+hadoop_version: [Hadoop version]
+iteration: [iteration number (used with incremental result directories)]
+java_version: [version of java present]
+meta_compute_service
+meta_compute_service_id*
+meta_cpu: [CPU model info]
+meta_cpu_cache: [CPU cache]
+meta_cpu_cores: [# of CPU cores]
+meta_cpu_speed: [CPU clock speed (MHz)]
+meta_instance_id*
+meta_hdfs_nodes
+meta_hostname: [system under test (SUT) hostname]
+meta_memory
+meta_memory_gb: [memory in gigabytes]
+meta_memory_mb: [memory in megabyets]
+meta_os_info: [operating system name and version]
+meta_provider
+meta_provider_id*
+meta_region*
+meta_resource_id
+meta_run_id
+meta_storage_config*
+meta_storage_volumes
+meta_storage_volume_size
+meta_test_id*
+purge_dirs
+teragen_blocksize: [TeraGen block size setting in MB]
+teragen_cmd: [TeraGen runtime command - including teragen_args]
+teragen_dir
+teragen_failed: [1 if teragen failed]
+teragen_map_tasks: [# of TeraGen map task]
+teragen_reduce_tasks: [# of TeraGen map task]
+teragen_replication: [replication factor for teragen]
+teragen_rows
+teragen_time: [Total run duration of TeraGen in seconds]
+terasort_blocksize: [TeraSort block size setting in MB]
+terasort_cmd: [TeraSort runtime command - including terasort_args]
+terasort_conf: [URL to terasort-conf.zip (if --store option used)]
+terasort_dir
+terasort_failed: [1 if terasort failed]
+terasort_logs: [URL to terasort-logs.zip (if --store option used)]
+terasort_map_tasks: [# of TeraSort map task]
+terasort_reduce_tasks: [# of TeraSort map task]
+terasort_replication: [replication factor for terasort]
+terasort_time: [Total run duration of TeraSort in seconds]
+teravalidate_blocksize: [TeraValidate block size setting in MB]
+teravalidate_cmd: [TeraValidate runtime command - including teravalidate_args]
+teravalidate_dir
+teravalidate_failed: [1 if teravalidate failed]
+terasort_replication: [replication factor for teravalidate]
+teravalidate_time: [Total run duration of TeraValidate in seconds]
+test_started*: [when the test started]
+test_stopped: [when the test ended]
+
+
+USAGE
+# run 1 test iteration with some metadata
+./run.sh --meta_compute_service_id aws:ec2 --meta_instance_id c3.xlarge --meta_region us-east-1 --meta_test_id aws-1214
+
+# run with explicit hadoop_examples_jar
+./run.sh --hadoop_examples_jar /usr/lib/hadoop-0.20-mapreduce/hadoop-examples.jar
+
+# run 3 test iterations using a specific output directory
+for i in {1..3}; do mkdir -p ~/terasort-testing/$i; ./run.sh --output ~/terasort-testing/$i; done
+
+
+# save.sh saves results to CSV, MySQL, PostgreSQL, BigQuery or via HTTP 
+# callback. It can also save artifacts (HTML, JSON and text results) to S3, 
+# Azure Blob Storage or Google Cloud Storage
+
+# save results to CSV files
+./save.sh
+
+# save results from 3 iterations text example above
+./save.sh ~/terasort-testing
+
+# save results to a PostgreSQL database
+./save --db postgresql --db_user dbuser --db_pswd dbpass --db_host db.mydomain.com --db_name benchmarks
+
+# save results to BigQuery and artifact (TRIAD gnuplot PNG image) to S3
+./save --db bigquery --db_name benchmark_dataset --store s3 --store_key THISIH5TPISAEZIJFAKE --store_secret thisNoat1VCITCGggisOaJl3pxKmGu2HMKxxfake --store_container benchmarks1234
+
+
