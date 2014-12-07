@@ -13,6 +13,7 @@
   {"name": "meta_instance_id", "type": "char(96)"},
   {"name": "meta_hdfs_nodes", "type": "int unsigned"},
   {"name": "meta_hostname", "type": "char(64)"},
+  {"name": "meta_map_reduce_version", "type": "tinyint unsigned"},
   {"name": "meta_memory", "type": "char(32)"},
   {"name": "meta_memory_gb", "type": "smallint unsigned"},
   {"name": "meta_memory_mb", "type": "int unsigned"},

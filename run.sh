@@ -35,6 +35,10 @@ environment metadata may be specified (using run.sh arguments):
 
 --hadoop_examples_jar       Optional explicit path to hadoop-examples.jar 
                             e.g. /usr/lib/hadoop-0.20-mapreduce/hadoop-examples.jar
+                            
+--hadoop_heapsize           Optional explicit heap size in megabytes for the 
+                            hadoop daemon. Value is set to the HADOOP_HEAPSIZE 
+                            environment variable
 
 --meta_compute_service      The name of the compute service this test pertains
                             to. May also be specified using the environment 
@@ -50,6 +54,9 @@ environment metadata may be specified (using run.sh arguments):
 --meta_instance_id          The compute service instance type this test pertains 
                             to (e.g. c3.xlarge). May also be specified using 
                             the environment variable bm_instance_id
+                            
+--meta_map_reduce_version   The map reduce version in place on the Hadoop 
+                            cluster. Default is 1. Options are 1 or 2
                             
 --meta_memory               Memory descriptor - if not specified, the system
                             memory size will be used
@@ -90,7 +97,7 @@ environment metadata may be specified (using run.sh arguments):
 --meta_storage_volumes      Number of storage volumes attached to each HDFS 
                             node
                             
---meta_storage_volume_size  Size of each storage volume
+--meta_storage_volume_size  Size of each storage volume in GB
                             
 --meta_test_id              Identifier for the test. May also be specified 
                             using the environment variable bm_test_id

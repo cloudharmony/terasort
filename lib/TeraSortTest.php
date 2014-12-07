@@ -142,6 +142,7 @@ class TeraSortTest {
           'meta_cpu' => $sysInfo['cpu'],
           'meta_hdfs_nodes' => 1,
           'meta_instance_id' => 'Not Specified',
+          'meta_map_reduce_version' => 1,
           'meta_memory' => $sysInfo['memory_gb'] > 0 ? $sysInfo['memory_gb'] . ' GB' : $sysInfo['memory_mb'] . ' MB',
           'meta_os' => $sysInfo['os_info'],
           'meta_provider' => 'Not Specified',
@@ -161,6 +162,7 @@ class TeraSortTest {
           'meta_cpu:',
           'meta_hdfs_nodes:',
           'meta_instance_id:',
+          'meta_map_reduce_version:',
           'meta_memory:',
           'meta_os:',
           'meta_provider:',
@@ -318,6 +320,7 @@ class TeraSortTest {
     $validate = array(
       'hadoop_heapsize' => array('min' => 128),
       'meta_hdfs_nodes' => array('min' => 1, 'required' => TRUE),
+      'meta_map_reduce_version' => array('min' => 1, 'max' => 2, 'required' => TRUE),
       'meta_storage_volumes' => array('min' => 1, 'required' => TRUE),
       'meta_storage_volume_size' => array('min' => 1),
       'output' => array('write' => TRUE),
