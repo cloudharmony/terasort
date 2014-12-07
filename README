@@ -92,7 +92,13 @@ environment metadata may be specified (using run.sh arguments):
                             working directory will be used
                             
 * teragen_args              Optional -D arguments for teragen - multiple OK
-                            e.g. "dfs.block.size=134217728"
+                            e.g. "dfs.block.size=134217728". Any of the _args
+                            parameters may contain the following tokens:
+                              {cpus} : number of CPU cores on the host
+                              {nodes}: number of nodes in the hdfs cluster
+                                       (per meta_hdfs_nodes)
+                            Additionally, values may be an expression:
+                              e.g. mapred.map.tasks={cpus}*{nodes}
                             
 * teragen_dir               hdfs directory where teragen input should be 
                             written to - if it already exists, it will be 

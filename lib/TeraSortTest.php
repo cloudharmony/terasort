@@ -51,6 +51,32 @@ class TeraSortTest {
   }
   
   /**
+   * checks for dynamic tokens and expressions in $variable and replaces and 
+   * executes accordingly. Return value is the final value
+   * @param string $variable the variable to evaluate
+   * @return string
+   */
+  private function checkForExpression($variable) {
+    // threads is based on number of CPUs
+    if (preg_match('/^(.*)=(.*)$/', $variable, $m)) {
+      $key = $m[1];
+      $value = $m[2];
+      if (preg_match('/{cpus}/', $value) || preg_match('/{nodes}/', $value)) {
+        $cpus = trim(shell_exec('nproc'))*1;
+        $value = str_replace(' ', '', str_replace('{cpus}', $cpus, $value));
+        $value = str_replace(' ', '', str_replace('{nodes}', $this->options['meta_hdfs_nodes'], $value));
+        // expression
+        if (preg_match('/[\*\+\-\/]/', $value)) {
+          eval(sprintf('$value=%s;', $value));
+        }
+        $value *= 1;
+      }
+      $variable = sprintf('%s=%s', $key, $value);
+    }
+    return $variable;
+  }
+  
+  /**
    * writes test results and finalizes testing
    * @return boolean
    */
@@ -193,6 +219,12 @@ class TeraSortTest {
       // remove empty args parameters
       foreach(array('teragen_args', 'terasort_args', 'teravalidate_args') as $key) {
         if (isset($this->options[$key]) && (!is_array($this->options[$key]) || !$this->options[$key])) unset($this->options[$key]);
+        else if (isset($this->options[$key])) {
+          foreach($this->options[$key] as $i => $variable) {
+            $this->options[$key][$i] = $this->checkForExpression($variable);
+            print_msg(sprintf('Set %s runtime argument to %s [base=%s]', $key, $this->options[$key][$i], $variable), isset($this->options['verbose']), __FILE__, __LINE__);
+          }
+        }
       }
     }
     return $this->options;
