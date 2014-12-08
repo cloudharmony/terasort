@@ -87,26 +87,30 @@ class TeraSortTest {
     // add test stop time
     $this->options['test_stopped'] = date('Y-m-d H:i:s');
     
+    // get hadoop version
     $pieces = explode("\n", trim(shell_exec('hadoop version 2>&1')));
     if ($pieces[0]) {
       $pieces = explode(' ', $pieces[0]);
       $this->options['hadoop_version'] = $pieces[count($pieces) - 1];
+      print_msg(sprintf('Set hadoop_version=%s', $this->options['hadoop_version']), isset($this->options['verbose']), __FILE__, __LINE__);
     }
-    $pieces = explode("\n", trim(shell_exec('java -version 2>&1')));
-    if ($pieces[0] && preg_match('/([0-9\._]+)/', $pieces[0], $m)) {
-      $this->options['java_version'] = $m[1];
+    
+    // get java version
+    $jversion = NULL;
+    $jvendor = NULL;
+    foreach(explode("\n", shell_exec('java -version 2>&1')) as $line) {
+      if (preg_match('/"([0-9\._]+)"/', trim($line), $m)) $jversion = $m[1];
+      else if (!$jvendor && preg_match('/openjdk/i', trim($line))) $jvendor = 'OpenJDK';
+      else if (!$jvendor && preg_match('/hotspot/i', trim($line))) $jvendor = 'Oracle';
+      else if (!$jvendor && preg_match('/ibm/i', trim($line))) $jvendor = 'IBM';
     }
+    if ($jversion) {
+      $this->options['java_version'] = sprintf('%s%s', $jvendor ? $jvendor . ' ' : '', $jversion);
+      print_msg(sprintf('Set java_version=%s', $this->options['java_version']), isset($this->options['verbose']), __FILE__, __LINE__);
+    }
+    
     foreach(array('teragen', 'terasort', 'teravalidate') as $prog) {
-      $conf = sprintf('%s/%s.xml', $this->options['output'], $prog);
       $ofile = sprintf('%s/%s.out', $this->options['output'], $prog);
-      if (file_exists($conf)) {
-        $properties = array();
-        foreach(file($conf) as $line) {
-          if (preg_match('/name\>(.*)\<\/name\>\<value\>(.*)\<\/value\>/', trim($line), $m)) $properties[$m[1]] = $m[2];
-        }
-        if (isset($properties['dfs.blocksize'])) $this->options[sprintf('%s_blocksize', $prog)] = round(($properties['dfs.blocksize']/1024)/1024);
-        if (isset($properties['dfs.replication'])) $this->options[sprintf('%s_replication', $prog)] = $properties['dfs.replication']*1;
-      }
       if (file_exists($ofile)) {
         foreach(file($ofile) as $line) {
           if (preg_match('/map tasks\s*=\s*([0-9]+)$/', trim($line), $m)) $this->options[sprintf('%s_map_tasks', $prog)] = $m[1]*1;
@@ -128,8 +132,8 @@ class TeraSortTest {
       print_msg(sprintf('Created configuration test artifact %s/terasort-conf.zip', $this->options['output']), isset($this->options['verbose']), __FILE__, __LINE__);
     }
     if (file_exists(sprintf('%s/teragen.out', $this->options['output']))) {
-      exec(sprintf('cd %s;zip terasort-log.zip *.out *.log;rm -f *.out *.log', $this->options['output']));
-      print_msg(sprintf('Created log test artifact %s/terasort-log.zip', $this->options['output']), isset($this->options['verbose']), __FILE__, __LINE__);
+      exec(sprintf('cd %s;zip terasort-logs.zip *.out *.log;mv output.log output.tmp;rm -f *.out *.log;mv output.tmp output.log', $this->options['output']));
+      print_msg(sprintf('Created log test artifact %s/terasort-logs.zip', $this->options['output']), isset($this->options['verbose']), __FILE__, __LINE__);
     }
     
     return $ended;
@@ -166,14 +170,12 @@ class TeraSortTest {
         $defaults = array(
           'meta_compute_service' => 'Not Specified',
           'meta_cpu' => $sysInfo['cpu'],
-          'meta_hdfs_nodes' => 1,
           'meta_instance_id' => 'Not Specified',
           'meta_map_reduce_version' => 1,
           'meta_memory' => $sysInfo['memory_gb'] > 0 ? $sysInfo['memory_gb'] . ' GB' : $sysInfo['memory_mb'] . ' MB',
           'meta_os' => $sysInfo['os_info'],
           'meta_provider' => 'Not Specified',
           'meta_storage_config' => 'Not Specified',
-          'meta_storage_volumes' => 1,
           'output' => trim(shell_exec('pwd')),
           'teragen_dir' => 'terasort-input',
           'teragen_rows' => 10000000000,
@@ -216,7 +218,42 @@ class TeraSortTest {
           if (!isset($this->options[$key])) $this->options[$key] = $val;
         }
       }
-      // remove empty args parameters
+      
+      // determine number of volumes and sizes from /hdfsN mounts
+      if (!isset($this->options['meta_storage_volumes']) && !isset($this->options['meta_storage_volume_size'])) {
+        $volumes = 0;
+        $sizes = array();
+        $counter = 1;
+        while(is_dir($dir = sprintf('/hdfs%d', $counter++))) {
+          $volumes++;
+          $sizes[] = round(get_free_space($dir)/1024);
+        }
+        if ($volumes && array_sum($sizes)) {
+          $size = round(array_sum($sizes)/count($sizes));
+          print_msg(sprintf('Setting meta_storage_volumes=%d and meta_storage_volume_size=%d GB from directories /hdfsN', $volumes, $size), isset($this->options['verbose']), __FILE__, __LINE__);
+          $this->options['meta_storage_volumes'] = $volumes;
+          $this->options['meta_storage_volume_size'] = $size;
+        }
+      }
+      
+      // determine meta_hdfs_nodes using hdfs dfsadmin -report
+      if (!isset($this->options['meta_hdfs_nodes']) || !is_numeric($this->options['meta_hdfs_nodes']) || !$this->options['meta_hdfs_nodes']) {
+        $nodes = NULL;
+        foreach(explode("\n", shell_exec('sudo -u hdfs hdfs dfsadmin -report 2>/dev/null')) as $line) {
+          if (preg_match('/Live datanodes \(([0-9]+)\)/', trim($line), $m)) {
+            $nodes = $m[1]*1;
+            print_msg(sprintf('Successfully obtained meta_hdfs_nodes=%d using hdfs dfsadmin -report', $nodes), isset($this->options['verbose']), __FILE__, __LINE__);
+            break;
+          }
+        }
+        if (!$nodes) {
+          print_msg(sprintf('Unable to obtain meta_hdfs_nodes using hdfs dfsadmin -report - user may not have sudo -u hdfs permission'), isset($this->options['verbose']), __FILE__, __LINE__, TRUE);
+          $nodes = 1;
+        }
+        $this->options['meta_hdfs_nodes'] = $nodes;
+      }
+      
+      // extrapolate args
       foreach(array('teragen_args', 'terasort_args', 'teravalidate_args') as $key) {
         if (isset($this->options[$key]) && (!is_array($this->options[$key]) || !$this->options[$key])) unset($this->options[$key]);
         else if (isset($this->options[$key])) {
@@ -273,10 +310,10 @@ class TeraSortTest {
       $ofile = sprintf('%s/%s.out', $this->options['output'], $prog);
       $xfile = sprintf('%s/%s.status', $this->options['output'], $prog);
       if (isset($this->options['hadoop_heapsize'])) {
-        print_msg(sprintf('Setting heapsize to %s', $this->options['hadoop_heapsize']), isset($this->options['verbose']), __FILE__, __LINE__);
+        print_msg(sprintf('Setting heapsize to %s for %s', $this->options['hadoop_heapsize'], $prog), isset($this->options['verbose']), __FILE__, __LINE__);
         $cmd = sprintf('export HADOOP_HEAPSIZE=%s;%s', $this->options['hadoop_heapsize'], $cmd);
       }
-      $cmd = sprintf('%s 2>&1 | tee %s;echo %s >%s', $cmd, $ofile, '${PIPESTATUS[0]}', $xfile);
+      $cmd = sprintf('%s >%s 2>&1 | echo $? >%s', $cmd, $ofile, $xfile);
       $start = time();
       passthru($cmd);
       $duration = time() - $start;
@@ -305,15 +342,39 @@ class TeraSortTest {
       else {
         $this->options[sprintf('%s_time', $prog)] = $duration;
         $purge[$prog] = $dir;
-        foreach(explode("\n", trim(shell_exec(sprintf('hadoop fs -ls %s/_logs/history', $dir)))) as $line) {
+        foreach(explode("\n", trim(shell_exec(sprintf('hadoop fs -ls %s/_logs/history 2>/dev/null', $dir)))) as $line) {
           if (preg_match('/Found/', trim($line))) continue;
           $pieces = explode(' ', trim($line));
           if ($file = $pieces[count($pieces) - 1]) {
             $ofile = sprintf('%s/%s.%s', $this->options['output'], $prog, preg_match('/xml$/', $file) ? 'xml' : 'log');
-            exec(sprintf('hadoop fs -cat %s >%s', $file, $ofile));
-            if (file_exists($ofile)) print_msg(sprintf('Successfully exported output file %s', basename($ofile)), isset($this->options['verbose']), __FILE__, __LINE__);
-            else print_msg(sprintf('Unable to export output file %s', basename($ofile)), isset($this->options['verbose']), __FILE__, __LINE__, TRUE);
+            exec(sprintf('hadoop fs -cat %s >%s 2>/dev/null', $file, $ofile));
+            if (file_exists($ofile) && filesize($ofile)) print_msg(sprintf('Successfully exported output file %s', basename($ofile)), isset($this->options['verbose']), __FILE__, __LINE__);
+            else {
+              print_msg(sprintf('Unable to export output file %s', basename($ofile)), isset($this->options['verbose']), __FILE__, __LINE__, TRUE);
+              exec(sprintf('rm -f %s', $ofile));
+            }
           }
+        }
+      }
+    }
+    
+    // determine blocksize and replication factors
+    foreach($purge as $prog => $dir) {
+      foreach(explode("\n", shell_exec(sprintf('hdfs dfs -ls -R %s', $dir))) as $line) {
+        if (preg_match('/^\-rw/', trim($line)) && preg_match('/part\-/', trim($line))) {
+          $pieces = explode(' ', trim($line));
+          $file = $pieces[count($pieces) - 1];
+          print_msg(sprintf('Attempting to get %s block size and replication factor using file %s', $prog, $file), isset($this->options['verbose']), __FILE__, __LINE__);
+          $pieces = explode(' ', trim(shell_exec(sprintf('hdfs dfs -stat "%s" %s', '%o %r', $file))));
+          if (count($pieces) == 2 && is_numeric($pieces[0]) && is_numeric($pieces[1])) {
+            $blocksize = round(($pieces[0]/1024)/1024);
+            $replication = $pieces[1]*1;
+            $this->options[sprintf('%s_blocksize', $prog)] = $blocksize;
+            $this->options[sprintf('%s_replication', $prog)] = $replication;
+            print_msg(sprintf('Successfully obtained %s blocksize [%d MB] and replication factor [%d]', $prog, $blocksize, $replication), isset($this->options['verbose']), __FILE__, __LINE__);
+          }
+          else print_msg(sprintf('Unable to obtain blocksize and replication factor %s. Output: %s', $prog, implode(' ', $pieces)), isset($this->options['verbose']), __FILE__, __LINE__, TRUE);
+          break;
         }
       }
     }
@@ -353,7 +414,7 @@ class TeraSortTest {
       'hadoop_heapsize' => array('min' => 128),
       'meta_hdfs_nodes' => array('min' => 1, 'required' => TRUE),
       'meta_map_reduce_version' => array('min' => 1, 'max' => 2, 'required' => TRUE),
-      'meta_storage_volumes' => array('min' => 1, 'required' => TRUE),
+      'meta_storage_volumes' => array('min' => 1),
       'meta_storage_volume_size' => array('min' => 1),
       'output' => array('write' => TRUE),
       'teragen_rows' => array('min' => 1000000, 'required' => TRUE)
