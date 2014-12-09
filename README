@@ -101,7 +101,8 @@ environment metadata may be specified (using run.sh arguments):
                               e.g. mapred.map.tasks={cpus}*{nodes}
                               
 * teragen_balance           when set, hdfs will be balanced following 
-                            execution of teragen (sudo -u hdfs hdfs balancer). 
+                            execution of teragen 
+                            (sudo -u hdfs hdfs balancer -threshold 5). 
                             user must have sudo privilege. The balance 
                             operation can be very slow - increase the 
                             hdfs-site.xml property 
