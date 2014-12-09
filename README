@@ -100,15 +100,16 @@ environment metadata may be specified (using run.sh arguments):
                             Additionally, values may be an expression:
                               e.g. mapred.map.tasks={cpus}*{nodes}
                               
-* teragen_balance           when set, hdfs will be balanced following 
-                            execution of teragen 
-                            (sudo -u hdfs hdfs balancer -threshold 5). 
-                            user must have sudo privilege. The balance 
+* teragen_balance           when set, the hdfs cluster will be balanced 
+                            to this threshold following execution of teragen 
+                            (sudo -u hdfs hdfs balancer -threshold [teragen_balance])
+                            User must have sudo privilege. The balance 
                             operation can be very slow - increase the 
                             hdfs-site.xml property 
                             dfs.datanode.balance.bandwidthPerSec from the 
-                            default 8 Mb/s something higher to increase 
-                            balancing speed
+                            default 8 Mb/s (1048576) something higher to 
+                            increase balancing speed. Value should be between
+                            3 and 50
                             
 * teragen_dir               hdfs directory where teragen input should be 
                             written to - if it already exists, it will be 

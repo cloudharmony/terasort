@@ -205,7 +205,7 @@ class TeraSortTest {
           'no_purge',
           'output:',
           'teragen_args:',
-          'teragen_balance',
+          'teragen_balance:',
           'teragen_dir:',
           'teragen_rows:',
           'terasort_args:',
@@ -358,7 +358,7 @@ class TeraSortTest {
         }
         if ($prog == 'teragen' && isset($this->options['teragen_balance'])) {
           print_msg(sprintf('attempting to rebalance hdfs cluster because --teragen_balance was set'), isset($this->options['verbose']), __FILE__, __LINE__);
-          passthru(sprintf('sudo -u hdfs hdfs balancer -threshold 5 %s2>&1', isset($this->options['verbose']) ? '' : '>/dev/null '));
+          passthru(sprintf('sudo -u hdfs hdfs balancer -threshold %d %s2>&1', $this->options['teragen_balance'], isset($this->options['verbose']) ? '' : '>/dev/null '));
         }
       }
     }
@@ -422,6 +422,7 @@ class TeraSortTest {
       'meta_storage_volumes' => array('min' => 1),
       'meta_storage_volume_size' => array('min' => 1),
       'output' => array('write' => TRUE),
+      'teragen_balance' => array('min' => 3, 'max' => 50),
       'teragen_rows' => array('min' => 1000000, 'required' => TRUE)
     );
     $validated = validate_options($this->options, $validate);
