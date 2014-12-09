@@ -428,7 +428,7 @@ class TeraSortTest {
     foreach(array('teragen_args', 'terasort_args', 'teravalidate_args') as $arg) {
       if (isset($this->options[$arg]) && is_array($this->options[$arg])) {
         foreach($this->options[$arg] as $a) {
-          if (!preg_match('/^[a-zA-Z0-9\.]+=[a-zA-Z0-9\.]$/', $a)) {
+          if (!preg_match('/^[a-zA-Z0-9\.]+=[a-zA-Z0-9\.]+$/', $a)) {
             $validated[$arg] = sprintf('%s argument value %s is not formats as [arg]=[val]', $arg, $a);
           }
         }
