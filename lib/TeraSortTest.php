@@ -440,7 +440,16 @@ class TeraSortTest {
         }
       }
     }
-      
+    
+    // validate hostname
+    $hostname = trim(shell_exec('hostname'));
+    if ($hostname == 'localhost' && file_exists('/etc/hostname')) {
+      // attempt to set correct hostname if localhost
+      exec(sprintf('sudo hostname %s', trim(file_get_contents('/etc/hostname'))));
+      $hostname = trim(shell_exec('hostname'));
+    }
+    if ($hostname == 'localhost') $validated['hostname'] = 'hostname cannot be localhost';
+    
     return $validated;
   }
 }
