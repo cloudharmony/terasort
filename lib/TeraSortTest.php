@@ -358,7 +358,7 @@ class TeraSortTest {
         }
         if ($prog == 'teragen' && isset($this->options['teragen_balance'])) {
           print_msg(sprintf('attempting to rebalance hdfs cluster because --teragen_balance was set'), isset($this->options['verbose']), __FILE__, __LINE__);
-          passthru('sudo -u hdfs hdfs balancer 2>&1');
+          passthru(sprintf('sudo -u hdfs hdfs balancer %s2>&1', isset($this->options['verbose']) ? '' : '>/dev/null '));
         }
       }
     }
