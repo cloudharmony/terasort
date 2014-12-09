@@ -205,6 +205,7 @@ class TeraSortTest {
           'no_purge',
           'output:',
           'teragen_args:',
+          'teragen_balance',
           'teragen_dir:',
           'teragen_rows:',
           'terasort_args:',
@@ -354,6 +355,10 @@ class TeraSortTest {
               exec(sprintf('rm -f %s', $ofile));
             }
           }
+        }
+        if ($prog == 'teragen' && isset($this->options['teragen_balance'])) {
+          print_msg(sprintf('attempting to rebalance hdfs cluster because --teragen_balance was set'), isset($this->options['verbose']), __FILE__, __LINE__);
+          passthru('sudo -u hdfs hdfs balancer 2>&1');
         }
       }
     }

@@ -28,6 +28,7 @@
   {"name": "meta_storage_volume_size", "type": "int unsigned"},
   {"name": "meta_test_id", "type": "char(64)"},
   {"name": "no_purge", "type": "boolean"},
+  {"name": "teragen_balance", "type": "boolean"},
   {"name": "teragen_blocksize", "type": "tinyint unsigned"},
   {"name": "teragen_cmd", "type": "text"},
   {"name": "teragen_dir", "type": "char(32)"},

@@ -99,6 +99,10 @@ environment metadata may be specified (using run.sh arguments):
                                        (per meta_hdfs_nodes)
                             Additionally, values may be an expression:
                               e.g. mapred.map.tasks={cpus}*{nodes}
+                              
+* teragen_balance           when set, hdfs will be balanced following 
+                            execution of teragen (sudo -u hdfs hdfs balancer). 
+                            user must have sudo privilege
                             
 * teragen_dir               hdfs directory where teragen input should be 
                             written to - if it already exists, it will be 
@@ -192,6 +196,7 @@ meta_storage_volumes
 meta_storage_volume_size
 meta_test_id*
 purge_dirs
+teragen_balance
 teragen_blocksize: [TeraGen block size setting in MB]
 teragen_cmd: [TeraGen runtime command - including teragen_args]
 teragen_dir
