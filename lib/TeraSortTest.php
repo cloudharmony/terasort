@@ -61,13 +61,15 @@ class TeraSortTest {
     if (preg_match('/^(.*)=(.*)$/', $variable, $m)) {
       $key = $m[1];
       $value = $m[2];
-      if (preg_match('/{cpus}/', $value) || preg_match('/{nodes}/', $value)) {
+      if (preg_match('/{cpus}/', $value) || preg_match('/{nodes}/', $value) || preg_match('/{rows}/', $value) || preg_match('/{gb}/', $value)) {
         $cpus = trim(shell_exec('nproc'))*1;
         $value = str_replace(' ', '', str_replace('{cpus}', $cpus, $value));
         $value = str_replace(' ', '', str_replace('{nodes}', $this->options['meta_hdfs_nodes'], $value));
+        $value = str_replace(' ', '', str_replace('{rows}', $this->options['teragen_rows'], $value));
+        $value = str_replace(' ', '', str_replace('{gb}', round($this->options['teragen_rows']/10000000), $value));
         // expression
         if (preg_match('/[\*\+\-\/]/', $value)) {
-          eval(sprintf('$value=%s;', $value));
+          eval(sprintf('$value=ceil(%s);', $value));
         }
         $value *= 1;
       }
@@ -110,12 +112,53 @@ class TeraSortTest {
     }
     
     foreach(array('teragen', 'terasort', 'teravalidate') as $prog) {
+      if (isset($this->options['teragen_rows']) && isset($this->options[sprintf('%s_time', $prog)])) {
+        $secs = $this->options[sprintf('%s_time', $prog)];
+        $gb = $this->options['teragen_rows']/10000000;
+        $this->options[sprintf('%s_gbs', $prog)] = round($gb/$secs, 4);
+      }
       $ofile = sprintf('%s/%s.out', $this->options['output'], $prog);
       if (file_exists($ofile)) {
         foreach(file($ofile) as $line) {
           if (preg_match('/map tasks\s*=\s*([0-9]+)$/', trim($line), $m)) $this->options[sprintf('%s_map_tasks', $prog)] = $m[1]*1;
           else if (preg_match('/reduce tasks\s*=\s*([0-9]+)$/', trim($line), $m)) $this->options[sprintf('%s_reduce_tasks', $prog)] = $m[1]*1;
         }
+      }
+    }
+    
+    // set settings_core, settings_hdfs, settings_mapred
+    if (is_dir($this->options['hadoop_conf_dir'])) {
+      foreach(array('core-site.xml', 'hdfs-site.xml', 'mapred-site.xml') as $file) {
+        if (file_exists($file = sprintf('%s/%s', $this->options['hadoop_conf_dir'], $file))) {
+          $key = sprintf('settings_%s', str_replace('-site.xml', '', basename($file)));
+          if (preg_match_all('/name>([^<]+)<.*value>([^<]+)</msU', file_get_contents($file), $m)) {
+            foreach($m[1] as $i => $k) {
+              if (trim($k) && isset($m[2][$i])) {
+                $k = trim($k);
+                // check for arg overrides
+                foreach(array('tera_args', 'teragen_args', 'terasort_args', 'teravalidate_args') as $akey) {
+                  if (isset($this->options[$akey]) && isset($this->options[$akey][$k])) $v = $this->options[$akey][$k];
+                }
+                $v = str_replace(' ', '', str_replace("\n", '', trim($m[2][$i])));
+                if (strpos($v, ',')) $v = explode(',', $v);
+                if ($v === 'false') $v = FALSE;
+                else if ($v === 'true') $v = TRUE;
+                else if (is_numeric($v)) $v *= 1;
+                if (!isset($this->options[$key])) $this->options[$key] = array();
+                $this->options[$key][$k] = $v;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // compression used?
+    if (isset($this->options['settings_mapred']) && isset($this->options['settings_mapred']['mapreduce.map.output.compress']) && $this->options['settings_mapred']['mapreduce.map.output.compress']) {
+      $this->options['compression'] = TRUE;
+      if ($this->options['compression_codec'] = isset($this->options['settings_mapred']['mapreduce.map.output.compress.codec']) ? $this->options['settings_mapred']['mapreduce.map.output.compress.codec'] : 'org.apache.hadoop.io.compress.DefaultCodec') {
+        $pieces = explode('.', $this->options['compression_codec']);
+        $this->options['compression_codec'] = $pieces[count($pieces) - 1];
       }
     }
     
@@ -151,7 +194,7 @@ class TeraSortTest {
       $results = array();
       foreach($this->options as $key => $val) {
         $col = $key;
-        $results[$col] = is_array($val) ? implode(',', $val) : $val;
+        $results[$col] = is_array($val) ? json_encode($val) : $val;
       }
     }
     return $results;
@@ -168,6 +211,7 @@ class TeraSortTest {
         // default run argument values
         $sysInfo = get_sys_info();
         $defaults = array(
+          'hadoop_conf_dir' => '/etc/hadoop/conf',
           'meta_compute_service' => 'Not Specified',
           'meta_cpu' => $sysInfo['cpu'],
           'meta_instance_id' => 'Not Specified',
@@ -183,6 +227,7 @@ class TeraSortTest {
           'teravalidate_dir' => 'terasort-validate'
         );
         $opts = array(
+          'hadoop_conf_dir:',
           'hadoop_examples_jar:',
           'hadoop_heapsize:',
           'meta_compute_service:',
@@ -204,6 +249,7 @@ class TeraSortTest {
           'meta_test_id:',
           'no_purge',
           'output:',
+          'tera_args:',
           'teragen_args:',
           'teragen_balance:',
           'teragen_dir:',
@@ -214,7 +260,7 @@ class TeraSortTest {
           'teravalidate_dir:',
           'v' => 'verbose'
         );
-        $this->options = parse_args($opts, array('teragen_args', 'terasort_args', 'teravalidate_args')); 
+        $this->options = parse_args($opts, array('tera_args', 'teragen_args', 'terasort_args', 'teravalidate_args')); 
         foreach($defaults as $key => $val) {
           if (!isset($this->options[$key])) $this->options[$key] = $val;
         }
@@ -255,7 +301,7 @@ class TeraSortTest {
       }
       
       // extrapolate args
-      foreach(array('teragen_args', 'terasort_args', 'teravalidate_args') as $key) {
+      foreach(array('tera_args', 'teragen_args', 'terasort_args', 'teravalidate_args') as $key) {
         if (isset($this->options[$key]) && (!is_array($this->options[$key]) || !$this->options[$key])) unset($this->options[$key]);
         else if (isset($this->options[$key])) {
           foreach($this->options[$key] as $i => $variable) {
@@ -287,17 +333,20 @@ class TeraSortTest {
     $this->options['test_started'] = date('Y-m-d H:i:s');
     
     $cmds = array();
-    $cmds['teragen'] = sprintf('hadoop jar%s teragen%s %d %s', 
+    $cmds['teragen'] = sprintf('hadoop jar%s teragen%s%s %d %s', 
                        isset($this->options['hadoop_examples_jar']) ? ' ' . $this->options['hadoop_examples_jar'] : '',
                        isset($this->options['teragen_args']) ? ' -D' . implode(' -D', $this->options['teragen_args']) : '',
+                       isset($this->options['tera_args']) ? ' -D' . implode(' -D', $this->options['tera_args']) : '',
                        $this->options['teragen_rows'], $this->options['teragen_dir']);
-    $cmds['terasort'] = sprintf('hadoop jar%s terasort%s %s %s',
+    $cmds['terasort'] = sprintf('hadoop jar%s terasort%s%s %s %s',
                        isset($this->options['hadoop_examples_jar']) ? ' ' . $this->options['hadoop_examples_jar'] : '',
                        isset($this->options['terasort_args']) ? ' -D' . implode(' -D', $this->options['terasort_args']) : '',
+                       isset($this->options['tera_args']) ? ' -D' . implode(' -D', $this->options['tera_args']) : '',
                        $this->options['teragen_dir'], $this->options['terasort_dir']);
-    $cmds['teravalidate'] = sprintf('hadoop jar%s teravalidate%s %s %s',
+    $cmds['teravalidate'] = sprintf('hadoop jar%s teravalidate%s%s %s %s',
                        isset($this->options['hadoop_examples_jar']) ? ' ' . $this->options['hadoop_examples_jar'] : '',
                        isset($this->options['teravalidate_args']) ? ' -D' . implode(' -D', $this->options['teravalidate_args']) : '',
+                       isset($this->options['tera_args']) ? ' -D' . implode(' -D', $this->options['tera_args']) : '',
                        $this->options['terasort_dir'], $this->options['teravalidate_dir']);
     $purge = array();
     
@@ -342,6 +391,34 @@ class TeraSortTest {
       }
       else {
         $this->options[sprintf('%s_time', $prog)] = $duration;
+        // determine reduce phase times
+        $pstart = NULL;
+        $phase = NULL;
+        foreach(file($ofile) as $line) {
+          if (preg_match('/([0-9]{2}:[0-9]{2}:[0-9]{2}).*reduce\s+([0-9]+)%/', trim($line), $m)) {
+            $time = strtotime($m[1]);
+            $perc = $m[2]*1;
+            if ($perc > 0) {
+              // start time was day prior
+              if ($time < $pstart) $time += (24*60)*60;
+              $nphase = $perc <= 33 ? 1 : ($perc <= 66 ? 2 : 3);
+              if ($phase != $nphase || $perc == 100) {
+                if ($phase) {
+                  $duration = ($perc == 100 ? $time : $ltime) - $pstart;
+                  $pstart = $ltime;
+                  $this->options[sprintf('%s_reduce_p%d', $prog, $phase)] = $duration;
+                  print_msg(sprintf('Set duration of %s_reduce_p%d=%d', $prog, $phase, $duration), isset($this->options['verbose']), __FILE__, __LINE__); 
+                }
+                $phase = $nphase;
+              }
+            }
+            else if (!$phase) $pstart = $time;
+            
+            $ltime = $time;
+            if ($perc == 100) break;
+          }
+        }
+        
         $purge[$prog] = $dir;
         foreach(explode("\n", trim(shell_exec(sprintf('hadoop fs -ls %s/_logs/history 2>/dev/null', $dir)))) as $line) {
           if (preg_match('/Found/', trim($line))) continue;
@@ -431,7 +508,7 @@ class TeraSortTest {
     if (isset($this->options['hadoop_examples_jar']) && !file_exists($this->options['hadoop_examples_jar'])) {
       $validated['hadoop_examples_jar'] = sprintf('%s file', $this->options['hadoop_examples_jar']);
     }
-    foreach(array('teragen_args', 'terasort_args', 'teravalidate_args') as $arg) {
+    foreach(array('tera_args', 'teragen_args', 'terasort_args', 'teravalidate_args') as $arg) {
       if (isset($this->options[$arg]) && is_array($this->options[$arg])) {
         foreach($this->options[$arg] as $a) {
           if (!preg_match('/^[a-zA-Z0-9\.]+=[a-zA-Z0-9\.]+$/', $a)) {

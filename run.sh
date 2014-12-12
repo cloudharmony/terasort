@@ -33,6 +33,9 @@ the user via the 'hadoop' command. The following runtime parameters and
 environment metadata may be specified (using run.sh arguments):
 
 
+--hadoop_conf_dir           Hadoop conf directory (see 'settings_*' output 
+                            parameters below). Default is /etc/hadoop/conf
+
 --hadoop_examples_jar       Optional explicit path to hadoop-examples.jar 
                             e.g. /usr/lib/hadoop-0.20-mapreduce/hadoop-examples.jar
                             
@@ -110,8 +113,31 @@ environment metadata may be specified (using run.sh arguments):
                             (logs and artifacts). If not specified, the current 
                             working directory will be used
                             
+--tera_args                 Optional -D arguments for teragen, terasort and 
+                            teravalidate - multiple OK
+                            e.g. "dfs.block.size=134217728". Any of the *_args
+                            parameters may contain the following tokens:
+                              {cpus} : number of CPU cores on the host
+                              {nodes}: number of nodes in the hdfs cluster
+                                       (per meta_hdfs_nodes)
+                              {rows}:  number of rows (teragen_rows)
+                              {gb}:    size of rows in GB
+                            Additionally, values may be an expression:
+                              e.g. mapred.map.tasks={cpus}*{nodes}
+                            
 --teragen_args              Optional -D arguments for teragen - multiple OK
                             e.g. "dfs.block.size=134217728"
+                              
+--teragen_balance           when set, the hdfs cluster will be balanced 
+                            to this threshold following execution of teragen 
+                            (sudo -u hdfs hdfs balancer -threshold [teragen_balance])
+                            User must have sudo privilege. The balance 
+                            operation can be very slow - increase the 
+                            hdfs-site.xml property 
+                            dfs.datanode.balance.bandwidthPerSec from the 
+                            default 8 Mb/s (1048576) something higher to 
+                            increase balancing speed. Value should be between
+                            3 and 50
                             
 --teragen_dir               hdfs directory where teragen input should be 
                             written to - if it already exists, it will be 
@@ -145,10 +171,16 @@ environment metadata may be specified (using run.sh arguments):
 DEPENDENCIES
 This benchmark has the following dependencies:
 
-  hadoop      Hadoop command - cluster should be provisioned and enabled for 
-              the current user invoking run.sh
+hadoop      Hadoop command - cluster should be provisioned and enabled for 
+            the current user invoking run.sh
+            
+hdfs        Used to interact with hdfs
 
-  php-cli     Test automation scripts (/usr/bin/php)
+java        Java JDK
+
+php         Test automation scripts (/usr/bin/php)
+
+zip         Used to compress test artifacts
 
 
 USAGE

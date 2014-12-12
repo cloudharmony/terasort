@@ -14,6 +14,9 @@ Use of run.sh requires the Hadoop cluster to be provisioned and accessible to
 the user via the 'hadoop' command. The following runtime parameters and 
 environment metadata may be specified (using run.sh arguments):
 
+* hadoop_conf_dir           Hadoop conf directory (see 'settings_*' output 
+                            parameters below). Default is /etc/hadoop/conf
+
 * hadoop_examples_jar       Optional explicit path to hadoop-examples.jar 
                             e.g. /usr/lib/hadoop-0.20-mapreduce/hadoop-examples.jar
                             
@@ -91,14 +94,20 @@ environment metadata may be specified (using run.sh arguments):
                             (logs and artifacts). If not specified, the current 
                             working directory will be used
                             
-* teragen_args              Optional -D arguments for teragen - multiple OK
-                            e.g. "dfs.block.size=134217728". Any of the _args
+* tera_args                 Optional -D arguments for teragen, terasort and 
+                            teravalidate - multiple OK
+                            e.g. "dfs.block.size=134217728". Any of the *_args
                             parameters may contain the following tokens:
                               {cpus} : number of CPU cores on the host
                               {nodes}: number of nodes in the hdfs cluster
                                        (per meta_hdfs_nodes)
+                              {rows}:  number of rows (teragen_rows)
+                              {gb}:    size of rows in GB
                             Additionally, values may be an expression:
                               e.g. mapred.map.tasks={cpus}*{nodes}
+                            
+* teragen_args              Optional -D arguments for teragen - multiple OK
+                            e.g. "dfs.block.size=134217728"
                               
 * teragen_balance           when set, the hdfs cluster will be balanced 
                             to this threshold following execution of teragen 
@@ -176,6 +185,8 @@ indexing used is documented in save/schema/terasort.json. Columns can be
 removed using the save.sh --remove parameter
 
 benchmark_version: [benchmark version]
+compression: [true if compression used (i.e. mapreduce.map.output.compress)]
+compression_codec: [intermediate compression codec class name - if used (i.e. mapreduce.map.output.compress.codec)]
 hadoop_heapsize
 hadoop_version: [Hadoop version]
 iteration: [iteration number (used with incremental result directories)]
@@ -203,26 +214,38 @@ meta_storage_volumes
 meta_storage_volume_size
 meta_test_id*
 purge_dirs
+settings_core: [JSON string representing settings in core-site.xml]
+settings_hdfs: [JSON string representing settings in hdfs-site.xml]
+settings_mapred: [JSON string representing settings in mapred-site.xml]
+tera_args: [JSON]
+teragen_args: [JSON]
 teragen_balance
 teragen_blocksize: [TeraGen block size setting in MB]
 teragen_cmd: [TeraGen runtime command - including teragen_args]
 teragen_dir
 teragen_failed: [1 if teragen failed]
+teragen_gbs: [GB/s writeen during teragen]
 teragen_map_tasks: [# of TeraGen map task]
 teragen_reduce_tasks: [# of TeraGen map task]
 teragen_replication: [replication factor for teragen]
 teragen_rows
 teragen_time: [Total run duration of TeraGen in seconds]
+terasort_args: [JSON]
 terasort_blocksize: [TeraSort block size setting in MB]
 terasort_cmd: [TeraSort runtime command - including terasort_args]
 terasort_conf: [URL to terasort-conf.zip (if --store option used)]
 terasort_dir
 terasort_failed: [1 if terasort failed]
+terasort_gbs: [GB/s processed during terasort]
 terasort_logs: [URL to terasort-logs.zip (if --store option used)]
 terasort_map_tasks: [# of TeraSort map task]
+terasort_reduce_p1: [seconds in reduce shuffle phase (0-33%)]
+terasort_reduce_p2: [seconds in reduce sort phase (34-66%)]
+terasort_reduce_p3: [seconds in reduce phase (67-100%)]
 terasort_reduce_tasks: [# of TeraSort map task]
 terasort_replication: [replication factor for terasort]
 terasort_time: [Total run duration of TeraSort in seconds]
+teravalidate_args: [JSON]
 teravalidate_blocksize: [TeraValidate block size setting in MB]
 teravalidate_cmd: [TeraValidate runtime command - including teravalidate_args]
 teravalidate_dir
