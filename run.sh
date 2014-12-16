@@ -32,7 +32,6 @@ Use of run.sh requires the Hadoop cluster to be provisioned and accessible to
 the user via the 'hadoop' command. The following runtime parameters and 
 environment metadata may be specified (using run.sh arguments):
 
-
 --hadoop_conf_dir           Hadoop conf directory (see 'settings_*' output 
                             parameters below). Default is /etc/hadoop/conf
 

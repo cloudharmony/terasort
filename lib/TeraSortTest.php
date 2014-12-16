@@ -211,6 +211,7 @@ class TeraSortTest {
         // default run argument values
         $sysInfo = get_sys_info();
         $defaults = array(
+          'collectd_rrd_dir' => '/var/lib/collectd/rrd',
           'hadoop_conf_dir' => '/etc/hadoop/conf',
           'meta_compute_service' => 'Not Specified',
           'meta_cpu' => $sysInfo['cpu'],
@@ -227,6 +228,8 @@ class TeraSortTest {
           'teravalidate_dir' => 'terasort-validate'
         );
         $opts = array(
+          'collectd_rrd',
+          'collectd_rrd_dir:',
           'hadoop_conf_dir:',
           'hadoop_examples_jar:',
           'hadoop_heapsize:',
@@ -260,7 +263,7 @@ class TeraSortTest {
           'teravalidate_dir:',
           'v' => 'verbose'
         );
-        $this->options = parse_args($opts, array('tera_args', 'teragen_args', 'terasort_args', 'teravalidate_args')); 
+        $this->options = parse_args($opts, array('tera_args', 'teragen_args', 'terasort_args', 'teravalidate_args'));
         foreach($defaults as $key => $val) {
           if (!isset($this->options[$key])) $this->options[$key] = $val;
         }
@@ -329,6 +332,8 @@ class TeraSortTest {
    * @return boolean
    */
   public function test() {
+    $rrdStarted = isset($this->options['collectd_rrd']) ? ch_collectd_rrd_start($this->options['collectd_rrd_dir'], isset($this->options['verbose'])) : FALSE;
+    
     $this->getRunOptions();
     $this->options['test_started'] = date('Y-m-d H:i:s');
     
@@ -469,6 +474,8 @@ class TeraSortTest {
       }
     }
     
+    if ($rrdStarted) ch_collectd_rrd_stop($this->options['collectd_rrd_dir'], $this->options['output'], isset($this->options['verbose']));
+    
     $this->endTest();
     
     return $success;
@@ -526,6 +533,14 @@ class TeraSortTest {
       $hostname = trim(shell_exec('hostname'));
     }
     if ($hostname == 'localhost') $validated['hostname'] = 'hostname cannot be localhost';
+    
+    // validate collectd rrd options
+    if (isset($this->options['collectd_rrd'])) {
+      if (!ch_check_sudo()) $validated['collectd_rrd'] = 'sudo privilege is required to use this option';
+      else if (!is_dir($this->options['collectd_rrd_dir'])) $validated['collectd_rrd_dir'] = sprintf('The directory %s does not exist', $this->options['collectd_rrd_dir']);
+      else if ((shell_exec('ps aux | grep collectd | wc -l')*1 < 2)) $validated['collectd_rrd'] = 'collectd is not running';
+      else if ((shell_exec(sprintf('find %s -maxdepth 1 -type d 2>/dev/null | wc -l', $this->options['collectd_rrd_dir']))*1 < 2)) $validated['collectd_rrd_dir'] = sprintf('The directory %s is empty', $this->options['collectd_rrd_dir']);
+    }
     
     return $validated;
   }

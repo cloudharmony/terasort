@@ -124,6 +124,8 @@ line delimited config file located in ~/.ch_benchmark (e.g. db_host=localhost)
                             
 --nostore_log               Do not store the TeraSort logs archive
 
+--nostore_rrd               Do not store collectd RRD files
+
 --output                    The output directory to use for writing CSV files.
                             If not specified, the current working directory 
                             will be used

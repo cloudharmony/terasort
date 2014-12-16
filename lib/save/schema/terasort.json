@@ -1,5 +1,6 @@
 [
   {"name": "benchmark_version", "type": "char(8)"},
+  {"name": "collectd_rrd", "type": "char(255)"},
   {"name": "compression", "type": "boolean"},
   {"name": "compression_codec", "type": "char(64)"},
   {"name": "hadoop_heapsize", "type": "char(16)"},
