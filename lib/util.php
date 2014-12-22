@@ -45,37 +45,41 @@ function ch_collectd_rrd_start($dir, $verbose) {
  * TRUE on success, FALSE otherwise
  * @param string $dir the base directory where collectd rrd files are stored
  * @param string $saveTo the directory where the rrd zip file should be created
+ * @param array $options test options - used to construct collectd rrd results 
+ * directories
  * @param boolean $verbose enable verbose output
  * @return boolean
  */
 function ch_collectd_rrd_stop($dir, $saveTo, $verbose) {
   $stopped = FALSE;
   if (is_dir($dir) && ch_check_sudo()) {
-    $d = dir($dir);
     $tdir = '/tmp/' . rand();
     exec(sprintf('sudo mkdir %s', $tdir));
     print_msg(sprintf('Attempting to save collectd rrd files in %s to %s/collectd-rrd.zip using tmp directory %s', $dir, $saveTo, $tdir), $verbose, __FILE__, __LINE__);
     
+    $rename = array();
+    $d = dir($dir);
     while($entry = $d->read()) {
       if (!preg_match('/[a-zA-Z0-9]+/', $entry)) continue;
       $rdir = sprintf('%s/%s', $dir, $entry);
       if (substr($rdir, -1) == '/') $rdir = substr($rdir, 0, -1);
       if (!is_dir($rdir)) continue;
-      print_msg(sprintf('Evaluating collectd rrd directory %s', $rdir), $verbose, __FILE__, __LINE__);
       if (is_dir($rdir)) {
-        if (preg_match('/\.bak$/', $entry)) {
-          $renameTo = substr($rdir, 0, -4);
-          exec($cmd = sprintf('%ssudo mv %s %s', is_dir($renameTo) ? sprintf('cd %s;sudo mv %s %s;', $dir, basename($renameTo), $tdir) : '', $rdir, $renameTo));
-          if (is_dir($renameTo)) print_msg(sprintf('Successfully renamed backup collectd rrd directory from %s to %s', $rdir, $renameTo), $verbose, __FILE__, __LINE__);
-          else print_msg(sprintf('Unable to rename existing collectd rrd directory from %s to %s', $rdir, $renameTo), $verbose, __FILE__, __LINE__, TRUE);
-        }
+        print_msg(sprintf('Evaluating collectd rrd directory %s', $rdir), $verbose, __FILE__, __LINE__);
+        if (preg_match('/\.bak$/', $entry)) $rename[] = $rdir;
         else {
-          exec($cmd = sprintf('cd %s;sudo mv %s %s', $dir, basename($rdir), $tdir));
+          exec($cmd = sprintf('sudo mv %s %s', $rdir, $tdir));
           print_msg(sprintf('Successfully moved test collectd rrd directory %s to %s', basename($rdir), $tdir), $verbose, __FILE__, __LINE__);
         }
       }
     }
     $d->close();
+    foreach($rename as $rdir) {
+      $renameTo = substr($rdir, 0, -4);
+      exec($cmd = sprintf('sudo rm -rf %s;sudo mv %s %s', $renameTo, $rdir, $renameTo));
+      if (is_dir($renameTo)) print_msg(sprintf('Successfully renamed backup collectd rrd directory from %s to %s', $rdir, $renameTo), $verbose, __FILE__, __LINE__);
+      else print_msg(sprintf('Unable to rename existing collectd rrd directory from %s to %s', $rdir, $renameTo), $verbose, __FILE__, __LINE__, TRUE);
+    }
     
     if ((shell_exec(sprintf('find %s -maxdepth 1 -type d 2>/dev/null | wc -l', $tdir))*1 < 2)) print_msg(sprintf('collectd rrd directory %s did not contain any files', $dir), $verbose, __FILE__, __LINE__, TRUE);
     else {
@@ -674,57 +678,57 @@ function parse_args($opts, $arrayArgs=NULL, $paramPrefix='') {
   $val = NULL;
   $options = array();
   foreach($argv as $arg) {
-    if (preg_match('/^\-\-?([^=]+)\=?(.*)$/', $arg, $m)) {
-      if ($key && isset($options[$key])) {
-        if (!is_array($options[$key])) $options[$key] = array($options[$key]);
-        $options[$key][] = $val;
-      }
-      else if ($key) $options[$key] = $val;
-      $key = $m[1];
-      $val = isset($m[2]) ? $m[2] : '';
-    }
-    else if ($key) $val .= ' ' . $arg;
+   if (preg_match('/^\-\-?([^=]+)\=?(.*)$/', $arg, $m)) {
+     if ($key && isset($options[$key])) {
+       if (!is_array($options[$key])) $options[$key] = array($options[$key]);
+       $options[$key][] = $val;
+     }
+     else if ($key) $options[$key] = $val;
+     $key = $m[1];
+     $val = isset($m[2]) ? $m[2] : '';
+   }
+   else if ($key) $val .= ' ' . $arg;
   }
   if ($key && isset($options[$key])) {
-    if (!is_array($options[$key])) $options[$key] = array($options[$key]);
-    $options[$key][] = $val;
+   if (!is_array($options[$key])) $options[$key] = array($options[$key]);
+   $options[$key][] = $val;
   }
   else if ($key) $options[$key] = $val;
 
   foreach($opts as $short => $long) {
-    $key = str_replace(':', '', $long);
-    if (preg_match('/[a-z]:?$/', $short) && isset($options[$short = substr($short, 0, 1)])) {
-      if (isset($options[$key])) {
-        if (!is_array($options[$key])) $options[$key] = array($options[$key]);
-        $options[$key][] = $options[$short];
-      }
-      else $options[$key] = $options[$short];
-      unset($options[$short]);
-    }
-    // check for environment variable
-    if (!isset($options[$key]) && preg_match('/^meta_/', $key) && getenv('bm_' . str_replace('meta_', '', $key)) !== FALSE) $options[$key] = getenv('bm_' . str_replace('meta_', '', $key));
-    if (!isset($options[$key]) && getenv("bm_param_${paramPrefix}${key}") !== FALSE) $options[$key] = getenv("bm_param_${paramPrefix}${key}");
-    // convert booleans
-    if (isset($options[$key]) && !strpos($long, ':')) $options[$key] = $options[$key] === '0' ? FALSE : TRUE;
-    // set array parameters
-    if (isset($arrayArgs) && is_array($arrayArgs)) {
-      if (isset($options[$key]) && in_array($key, $arrayArgs) && !is_array($options[$key])) {
-        $pieces = explode(preg_match('/\|/', $options[$key]) ? '|' : ',', $options[$key]);
-        $options[$key] = array();
-        foreach($pieces as $v) $options[$key][] = trim($v);
-      }
-      else if (isset($options[$key]) && !in_array($key, $arrayArgs) && is_array($options[$key])) $options[$key] = $options[$key][0];
-    }
-    // remove empty values
-    if (!isset($options[$key])) unset($options[$key]);
+   $key = str_replace(':', '', $long);
+   if (preg_match('/[a-z]:?$/', $short) && isset($options[$short = substr($short, 0, 1)])) {
+     if (isset($options[$key])) {
+       if (!is_array($options[$key])) $options[$key] = array($options[$key]);
+       $options[$key][] = $options[$short];
+     }
+     else $options[$key] = $options[$short];
+     unset($options[$short]);
+   }
+   // check for environment variable
+   if (!isset($options[$key]) && preg_match('/^meta_/', $key) && getenv('bm_' . str_replace('meta_', '', $key)) !== FALSE) $options[$key] = getenv('bm_' . str_replace('meta_', '', $key));
+   if (!isset($options[$key]) && getenv("bm_param_${paramPrefix}${key}") !== FALSE) $options[$key] = getenv("bm_param_${paramPrefix}${key}");
+   // convert booleans
+   if (isset($options[$key]) && !strpos($long, ':')) $options[$key] = $options[$key] === '0' ? FALSE : TRUE;
+   // set array parameters
+   if (isset($arrayArgs) && is_array($arrayArgs)) {
+     if (isset($options[$key]) && in_array($key, $arrayArgs) && !is_array($options[$key])) {
+       $pieces = explode(preg_match('/\|/', $options[$key]) || preg_match('/,\s*[A-Z]{2}$/', $options[$key]) ? '|' : ',', $options[$key]);
+       $options[$key] = array();
+       foreach($pieces as $v) $options[$key][] = trim($v);
+     }
+     else if (isset($options[$key]) && !in_array($key, $arrayArgs) && is_array($options[$key])) $options[$key] = $options[$key][0];
+   }
+   // remove empty values
+   if (!isset($options[$key])) unset($options[$key]);
   }
-  
+
   // remove quotes
   foreach(array_keys($options) as $i) {
-    if (is_array($options[$i])) {
-      foreach(array_keys($options[$i]) as $n) $options[$i][$n] = strip_quotes($options[$i][$n]);
-    }
-    else $options[$i] = strip_quotes($options[$i]);
+   if (is_array($options[$i])) {
+     foreach(array_keys($options[$i]) as $n) $options[$i][$n] = strip_quotes($options[$i][$n]);
+   }
+   else $options[$i] = strip_quotes($options[$i]);
   }
 
   return $options;

@@ -115,7 +115,7 @@ class TeraSortTest {
       if (isset($this->options['teragen_rows']) && isset($this->options[sprintf('%s_time', $prog)])) {
         $secs = $this->options[sprintf('%s_time', $prog)];
         $gb = $this->options['teragen_rows']/10000000;
-        $this->options[sprintf('%s_gbs', $prog)] = round($gb/$secs, 4);
+        $this->options[sprintf('%s_gbs', $prog)] = round($gb/$secs, 8);
       }
       $ofile = sprintf('%s/%s.out', $this->options['output'], $prog);
       if (file_exists($ofile)) {

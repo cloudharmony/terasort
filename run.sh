@@ -32,6 +32,18 @@ Use of run.sh requires the Hadoop cluster to be provisioned and accessible to
 the user via the 'hadoop' command. The following runtime parameters and 
 environment metadata may be specified (using run.sh arguments):
 
+--collectd_rrd              If set, collectd rrd stats will be captured from 
+                            --collectd_rrd_dir. To do so, when testing starts,
+                            existing directories in --collectd_rrd_dir will 
+                            be renamed to .bak, and upon test completion 
+                            any directories not ending in .bak will be zipped
+                            and saved along with other test artifacts (as 
+                            collectd-rrd.zip). User MUST have sudo privileges
+                            to use this option
+                            
+--collectd_rrd_dir          Location where collectd rrd files are stored - 
+                            default is /var/lib/collectd/rrd
+
 --hadoop_conf_dir           Hadoop conf directory (see 'settings_*' output 
                             parameters below). Default is /etc/hadoop/conf
 
