@@ -397,15 +397,23 @@ class TeraSortTest {
       else {
         $this->options[sprintf('%s_time', $prog)] = $duration;
         // determine reduce phase times
+        $mstart = NULL;
         $pstart = NULL;
         $phase = NULL;
+        $mkey = sprintf('%s_map_time', $prog);
         foreach(file($ofile) as $line) {
-          if (preg_match('/([0-9]{2}:[0-9]{2}:[0-9]{2}).*reduce\s+([0-9]+)%/', trim($line), $m)) {
+          if (preg_match('/([0-9]{2}:[0-9]{2}:[0-9]{2}).*map\s+([0-9]+)%.*reduce\s+([0-9]+)%/', trim($line), $m)) {
             $time = strtotime($m[1]);
+            // start time was day prior
+            if ($time < $pstart) $time += (24*60)*60;
+            
+            if (!$mstart) $mstart = $time;
+            
             $perc = $m[2]*1;
+            if ($perc == 100 && !isset($this->options[$mkey])) $this->options[$mkey] = $time - $mstart;
+            
+            $perc = $m[3]*1;
             if ($perc > 0) {
-              // start time was day prior
-              if ($time < $pstart) $time += (24*60)*60;
               $nphase = $perc <= 33 ? 1 : ($perc <= 66 ? 2 : 3);
               if ($phase != $nphase || $perc == 100) {
                 if ($phase) {
