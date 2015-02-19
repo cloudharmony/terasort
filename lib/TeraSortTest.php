@@ -212,11 +212,11 @@ class TeraSortTest {
         $sysInfo = get_sys_info();
         $defaults = array(
           'collectd_rrd_dir' => '/var/lib/collectd/rrd',
-          'hadoop_conf_dir' => '/etc/hadoop/conf',
+          'hadoop_home' => '/usr/local/hadoop',
           'meta_compute_service' => 'Not Specified',
           'meta_cpu' => $sysInfo['cpu'],
           'meta_instance_id' => 'Not Specified',
-          'meta_map_reduce_version' => 1,
+          'meta_map_reduce_version' => 2,
           'meta_memory' => $sysInfo['memory_gb'] > 0 ? $sysInfo['memory_gb'] . ' GB' : $sysInfo['memory_mb'] . ' MB',
           'meta_os' => $sysInfo['os_info'],
           'meta_provider' => 'Not Specified',
@@ -233,6 +233,7 @@ class TeraSortTest {
           'hadoop_conf_dir:',
           'hadoop_examples_jar:',
           'hadoop_heapsize:',
+          'hadoop_home:',
           'meta_compute_service:',
           'meta_compute_service_id:',
           'meta_cpu:',
@@ -267,6 +268,10 @@ class TeraSortTest {
         foreach($defaults as $key => $val) {
           if (!isset($this->options[$key])) $this->options[$key] = $val;
         }
+        // set hadoop conf dir
+        if (!isset($this->options['hadoop_conf_dir']) && isset($this->options['hadoop_home']) && is_dir($d = $this->options['hadoop_home'] . '/etc/hadoop')) $this->options['hadoop_conf_dir'] = $d;
+        // set terasort jar file
+        if (!isset($this->options['hadoop_examples_jar']) && isset($this->options['hadoop_home']) && file_exists($f = $this->options['hadoop_home'] . '/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.0.jar')) $this->options['hadoop_examples_jar'] = $f;
       }
       
       // determine number of volumes and sizes from /hdfsN mounts
@@ -284,23 +289,6 @@ class TeraSortTest {
           $this->options['meta_storage_volumes'] = $volumes;
           $this->options['meta_storage_volume_size'] = $size;
         }
-      }
-      
-      // determine meta_hdfs_nodes using hdfs dfsadmin -report
-      if (!isset($this->options['meta_hdfs_nodes']) || !is_numeric($this->options['meta_hdfs_nodes']) || !$this->options['meta_hdfs_nodes']) {
-        $nodes = NULL;
-        foreach(explode("\n", shell_exec('sudo -u hdfs hdfs dfsadmin -report 2>/dev/null')) as $line) {
-          if (preg_match('/Live datanodes \(([0-9]+)\)/', trim($line), $m)) {
-            $nodes = $m[1]*1;
-            print_msg(sprintf('Successfully obtained meta_hdfs_nodes=%d using hdfs dfsadmin -report', $nodes), isset($this->options['verbose']), __FILE__, __LINE__);
-            break;
-          }
-        }
-        if (!$nodes) {
-          print_msg(sprintf('Unable to obtain meta_hdfs_nodes using hdfs dfsadmin -report - user may not have sudo -u hdfs permission'), isset($this->options['verbose']), __FILE__, __LINE__, TRUE);
-          $nodes = 1;
-        }
-        $this->options['meta_hdfs_nodes'] = $nodes;
       }
       
       // extrapolate args
@@ -332,6 +320,21 @@ class TeraSortTest {
    * @return boolean
    */
   public function test() {
+      
+    // determine meta_hdfs_nodes using hdfs dfsadmin -report
+    if (!isset($this->options['meta_hdfs_nodes']) || !is_numeric($this->options['meta_hdfs_nodes']) || !$this->options['meta_hdfs_nodes']) {
+      $nodes = NULL;
+      if (($line = trim(shell_exec('hdfs dfsadmin -report | grep Live'))) && preg_match('/Live datanodes \(([0-9]+)\)/', trim($line), $m)) {
+        $nodes = $m[1]*1;
+        print_msg(sprintf('Successfully obtained meta_hdfs_nodes=%d using hdfs dfsadmin -report', $nodes), isset($this->options['verbose']), __FILE__, __LINE__);
+      }
+      else {
+        print_msg(sprintf('Unable to obtain meta_hdfs_nodes using hdfs dfsadmin -report'), isset($this->options['verbose']), __FILE__, __LINE__, TRUE);
+        $nodes = 1;
+      }
+      $this->options['meta_hdfs_nodes'] = $nodes;
+    }
+    
     $rrdStarted = isset($this->options['collectd_rrd']) ? ch_collectd_rrd_start($this->options['collectd_rrd_dir'], isset($this->options['verbose'])) : FALSE;
     
     $this->getRunOptions();
@@ -448,7 +451,7 @@ class TeraSortTest {
         }
         if ($prog == 'teragen' && isset($this->options['teragen_balance'])) {
           print_msg(sprintf('attempting to rebalance hdfs cluster because --teragen_balance was set'), isset($this->options['verbose']), __FILE__, __LINE__);
-          passthru(sprintf('sudo -u hdfs hdfs balancer -threshold %d %s2>&1', $this->options['teragen_balance'], isset($this->options['verbose']) ? '' : '>/dev/null '));
+          passthru(sprintf('hdfs balancer -threshold %d %s2>&1', $this->options['teragen_balance'], isset($this->options['verbose']) ? '' : '>/dev/null '));
         }
       }
     }

@@ -45,14 +45,18 @@ environment metadata may be specified (using run.sh arguments):
                             default is /var/lib/collectd/rrd
 
 --hadoop_conf_dir           Hadoop conf directory (see 'settings_*' output 
-                            parameters below). Default is /etc/hadoop/conf
+                            parameters below). Default is [hadoop_home]/etc/hadoop
 
---hadoop_examples_jar       Optional explicit path to hadoop-examples.jar 
-                            e.g. /usr/lib/hadoop-0.20-mapreduce/hadoop-examples.jar
+--hadoop_examples_jar       Path to JAR file containing TeraSort programs. 
+                            Default is [hadoop_home]/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.0.jar
                             
 --hadoop_heapsize           Optional explicit heap size in megabytes for the 
                             hadoop daemon. Value is set to the HADOOP_HEAPSIZE 
                             environment variable
+                            
+--hadoop_home               The base directory where hadoop is installed. Default 
+                            is /usr/local/hadoop. If [hadoop_home]/bin is not 
+                            already included in PATH, it will be added
 
 --meta_compute_service      The name of the compute service this test pertains
                             to. May also be specified using the environment 
@@ -70,7 +74,7 @@ environment metadata may be specified (using run.sh arguments):
                             the environment variable bm_instance_id
                             
 --meta_map_reduce_version   The map reduce version in place on the Hadoop 
-                            cluster. Default is 1. Options are 1 or 2
+                            cluster. Default is 2. Options are 1 or 2
                             
 --meta_memory               Memory descriptor - if not specified, the system
                             memory size will be used
