@@ -274,6 +274,23 @@ class TeraSortTest {
         if (!isset($this->options['hadoop_examples_jar']) && isset($this->options['hadoop_home']) && file_exists($f = $this->options['hadoop_home'] . '/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.6.0.jar')) $this->options['hadoop_examples_jar'] = $f;
       }
       
+      // Set [hadoop_home]/bin in the path if valid and not already set
+      if (isset($this->options['hadoop_home']) && is_dir($b = $this->options['hadoop_home'] . '/bin') && !strpos(getenv('PATH'), $b)) putenv('PATH=' . getenv('PATH') . ':' . $b);
+      
+      // determine meta_hdfs_nodes using hdfs dfsadmin -report
+      if (!isset($this->options['meta_hdfs_nodes']) || !is_numeric($this->options['meta_hdfs_nodes']) || !$this->options['meta_hdfs_nodes']) {
+        $nodes = NULL;
+        if (($line = trim(shell_exec('hdfs dfsadmin -report | grep Live'))) && preg_match('/Live datanodes \(([0-9]+)\)/', trim($line), $m)) {
+          $nodes = $m[1]*1;
+          print_msg(sprintf('Successfully obtained meta_hdfs_nodes=%d using hdfs dfsadmin -report', $nodes), isset($this->options['verbose']), __FILE__, __LINE__);
+        }
+        else {
+          print_msg(sprintf('Unable to obtain meta_hdfs_nodes using hdfs dfsadmin -report'), isset($this->options['verbose']), __FILE__, __LINE__, TRUE);
+          $nodes = 1;
+        }
+        $this->options['meta_hdfs_nodes'] = $nodes;
+      }
+      
       // determine number of volumes and sizes from /hdfsN mounts
       if (!isset($this->options['meta_storage_volumes']) && !isset($this->options['meta_storage_volume_size'])) {
         $volumes = 0;
@@ -320,20 +337,6 @@ class TeraSortTest {
    * @return boolean
    */
   public function test() {
-      
-    // determine meta_hdfs_nodes using hdfs dfsadmin -report
-    if (!isset($this->options['meta_hdfs_nodes']) || !is_numeric($this->options['meta_hdfs_nodes']) || !$this->options['meta_hdfs_nodes']) {
-      $nodes = NULL;
-      if (($line = trim(shell_exec('hdfs dfsadmin -report | grep Live'))) && preg_match('/Live datanodes \(([0-9]+)\)/', trim($line), $m)) {
-        $nodes = $m[1]*1;
-        print_msg(sprintf('Successfully obtained meta_hdfs_nodes=%d using hdfs dfsadmin -report', $nodes), isset($this->options['verbose']), __FILE__, __LINE__);
-      }
-      else {
-        print_msg(sprintf('Unable to obtain meta_hdfs_nodes using hdfs dfsadmin -report'), isset($this->options['verbose']), __FILE__, __LINE__, TRUE);
-        $nodes = 1;
-      }
-      $this->options['meta_hdfs_nodes'] = $nodes;
-    }
     
     $rrdStarted = isset($this->options['collectd_rrd']) ? ch_collectd_rrd_start($this->options['collectd_rrd_dir'], isset($this->options['verbose'])) : FALSE;
     
@@ -512,7 +515,6 @@ class TeraSortTest {
     $this->getRunOptions();
     $validate = array(
       'hadoop_heapsize' => array('min' => 128),
-      'meta_hdfs_nodes' => array('min' => 1, 'required' => TRUE),
       'meta_map_reduce_version' => array('min' => 1, 'max' => 2, 'required' => TRUE),
       'meta_storage_volumes' => array('min' => 1),
       'meta_storage_volume_size' => array('min' => 1),

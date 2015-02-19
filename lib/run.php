@@ -22,9 +22,6 @@ $test = new TeraSortTest();
 $options = $test->getRunOptions();
 $verbose = isset($options['verbose']) && $options['verbose'];
 
-// Set [hadoop_home]/bin in the path if valid and not already set
-if (isset($options['hadoop_home']) && is_dir($b = $options['hadoop_home'] . '/bin') && !strpos(getenv('PATH'), $b)) putenv('PATH=' . getenv('PATH') . ':' . $b);
-
 // invalid run argument
 if ($invalid = $test->validateRunOptions($options)) {
   foreach($invalid as $arg => $err) print_msg(sprintf('argument --%s is invalid - %s', $arg, $err), $verbose, __FILE__, __LINE__, TRUE);
