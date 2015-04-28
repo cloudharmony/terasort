@@ -121,6 +121,9 @@ environment metadata may be specified (using run.sh arguments):
                               {gb}:    size of rows in GB
                             Additionally, values may be an expression:
                               e.g. mapred.map.tasks={cpus}*{nodes}
+                            or a ternary expression - reduce jobs are 64GB but 
+                            at least equal to the number of cluster nodes:
+                              e.g. mapreduce.job.reduces={nodes}>({gb}/64)?{nodes}:({gb}/64)
                             
 * teragen_args              Optional -D arguments for teragen - multiple OK
                             e.g. "dfs.block.size=134217728"
@@ -236,6 +239,7 @@ purge_dirs
 settings_core: [JSON string representing settings in core-site.xml]
 settings_hdfs: [JSON string representing settings in hdfs-site.xml]
 settings_mapred: [JSON string representing settings in mapred-site.xml]
+settings_yarn: [JSON string representing settings in yarn-site.xml]
 tera_args: [JSON]
 teragen_args: [JSON]
 teragen_balance
@@ -300,7 +304,7 @@ for i in {1..3}; do mkdir -p ~/terasort-testing/$i; ./run.sh --output ~/terasort
 # save results to a PostgreSQL database
 ./save --db postgresql --db_user dbuser --db_pswd dbpass --db_host db.mydomain.com --db_name benchmarks
 
-# save results to BigQuery and artifact (TRIAD gnuplot PNG image) to S3
+# save results to BigQuery and artifacts to S3
 ./save --db bigquery --db_name benchmark_dataset --store s3 --store_key THISIH5TPISAEZIJFAKE --store_secret thisNoat1VCITCGggisOaJl3pxKmGu2HMKxxfake --store_container benchmarks1234
 
 

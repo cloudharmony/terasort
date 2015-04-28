@@ -34,6 +34,7 @@
   {"name": "settings_core", "type": "text"},
   {"name": "settings_hdfs", "type": "text"},
   {"name": "settings_mapred", "type": "text"},
+  {"name": "settings_yarn", "type": "text"},
   {"name": "tera_args", "type": "text"},
   {"name": "teragen_args", "type": "text"},
   {"name": "teragen_balance", "type": "boolean"},

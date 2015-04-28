@@ -139,6 +139,9 @@ environment metadata may be specified (using run.sh arguments):
                               {gb}:    size of rows in GB
                             Additionally, values may be an expression:
                               e.g. mapred.map.tasks={cpus}*{nodes}
+                            or a ternary expression - reduce jobs are 64GB but 
+                            at least equal to the number of cluster nodes:
+                              e.g. mapreduce.job.reduces={nodes}>({gb}/64)?{nodes}:({gb}/64)
                             
 --teragen_args              Optional -D arguments for teragen - multiple OK
                             e.g. "dfs.block.size=134217728"

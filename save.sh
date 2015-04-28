@@ -415,12 +415,12 @@ USAGE
 ./save.sh
 
 # save results from 5 iterations text example above
-./save.sh ~/geekbench-testing
+./save.sh ~/terasort-testing
 
 # save results to a PostgreSQL database
 ./save --db postgresql --db_user dbuser --db_pswd dbpass --db_host db.mydomain.com --db_name benchmarks
 
-# save results to BigQuery and artifact (TRIAD gnuplot PNG image) to S3
+# save results to BigQuery and artifacts to S3
 ./save --db bigquery --db_name benchmark_dataset --store s3 --store_key THISIH5TPISAEZIJFAKE --store_secret thisNoat1VCITCGggisOaJl3pxKmGu2HMKxxfake --store_container benchmarks1234
 
 # save results to Librato Metrics using the median metric and custom name/source

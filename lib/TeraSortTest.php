@@ -128,7 +128,7 @@ class TeraSortTest {
     
     // set settings_core, settings_hdfs, settings_mapred
     if (is_dir($this->options['hadoop_conf_dir'])) {
-      foreach(array('core-site.xml', 'hdfs-site.xml', 'mapred-site.xml') as $file) {
+      foreach(array('core-site.xml', 'hdfs-site.xml', 'mapred-site.xml', 'yarn-site.xml') as $file) {
         if (file_exists($file = sprintf('%s/%s', $this->options['hadoop_conf_dir'], $file))) {
           $key = sprintf('settings_%s', str_replace('-site.xml', '', basename($file)));
           if (preg_match_all('/name>([^<]+)<.*value>([^<]+)</msU', file_get_contents($file), $m)) {
@@ -280,7 +280,7 @@ class TeraSortTest {
       // determine meta_hdfs_nodes using hdfs dfsadmin -report
       if (!isset($this->options['meta_hdfs_nodes']) || !is_numeric($this->options['meta_hdfs_nodes']) || !$this->options['meta_hdfs_nodes']) {
         $nodes = NULL;
-        if (($line = trim(shell_exec('hdfs dfsadmin -report | grep Live'))) && preg_match('/Live datanodes \(([0-9]+)\)/', trim($line), $m)) {
+        if (($line = trim(shell_exec('hdfs dfsadmin -report | grep atanodes'))) && preg_match('/[^0-9]+([0-9]+)[^0-9]+/', trim($line), $m)) {
           $nodes = $m[1]*1;
           print_msg(sprintf('Successfully obtained meta_hdfs_nodes=%d using hdfs dfsadmin -report', $nodes), isset($this->options['verbose']), __FILE__, __LINE__);
         }
@@ -452,7 +452,7 @@ class TeraSortTest {
             }
           }
         }
-        if ($prog == 'teragen' && isset($this->options['teragen_balance'])) {
+        if ($prog != 'teravalidate' && isset($this->options['teragen_balance'])) {
           print_msg(sprintf('attempting to rebalance hdfs cluster because --teragen_balance was set'), isset($this->options['verbose']), __FILE__, __LINE__);
           passthru(sprintf('hdfs balancer -threshold %d %s2>&1', $this->options['teragen_balance'], isset($this->options['verbose']) ? '' : '>/dev/null '));
         }
