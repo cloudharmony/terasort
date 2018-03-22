@@ -21,7 +21,7 @@
 require_once(dirname(__FILE__) . '/TeraSortTest.php');
 require_once(dirname(__FILE__) . '/save/BenchmarkDb.php');
 $status = 1;
-$args = parse_args(array('iteration:', 'nostore_conf', 'nostore_logs', 'nostore_rrd', 'v' => 'verbose'));
+$args = parse_args(array('iteration:', 'nostore_conf', 'nostore_logs', 'nostore_rrd', 'v' => 'verbose'), NULL, 'save_');
 
 // get result directories => each directory stores 1 iteration of results
 $dirs = array();
